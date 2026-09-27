@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>المنيو | نايل ستون كافيه</title>
+  <meta name="description" content="منيو نايل ستون كافيه بالأسعار: مشروبات ساخنة، عصائر فريش، سموزي، موخيتو، ميلك شيك، Nile Stone VIP، وشيشة.">
+  <meta name="theme-color" content="#07060d">
+  <link rel="icon" href="assets/img/favicon.png">
+  <meta property="og:title" content="Nile Stone Café – Menu">
+  <meta property="og:image" content="assets/img/og.jpg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Pacifico&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body data-title-key="mp.page">
+
+<header class="site-header scrolled">
+  <nav class="container nav" aria-label="Main">
+    <a href="index.html" class="brand" aria-label="Nile Stone Café">
+      <img src="assets/img/logo.webp" alt="Nile Stone Café" width="64" height="58">
+    </a>
+    <div class="nav-actions">
+      <button class="lang-btn" type="button" data-i18n="lang" aria-label="Switch language">EN</button>
+      <a href="index.html#book" class="btn btn-pink nav-cta" data-i18n="nav.book">احجز مناسبتك</a>
+      <a href="index.html" class="btn btn-ghost btn-sm" data-i18n="mp.back">الرئيسية</a>
+    </div>
+  </nav>
+</header>
+
+<main class="menu-page">
+  <div class="container menu-hero">
+    <img src="assets/img/logo.webp" alt="Nile Stone Café">
+    <p class="script neon-cyan" style="margin:0;font-size:1.4rem">Good Times Flow</p>
+    <h1 class="section-title neon-pink" style="margin-top:6px" data-i18n="mp.title">المنيو</h1>
+    <input class="menu-search" id="menu-search" type="search" data-i18n-ph="mp.search" placeholder="دوّر على مشروب…" aria-label="Search">
+    <p class="currency-note" data-i18n="mp.note">الأسعار بالجنيه المصري</p>
+  </div>
+
+  <nav class="cat-nav" aria-label="Categories"><div class="container" id="cat-nav"></div></nav>
+
+  <div class="container menu-cols" id="menu-cols"></div>
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <p class="copy"><span data-i18n="visit.addr">20 شارع الملك الصالح، مصر القديمة، القاهرة</span> · <a href="tel:+201093195894" dir="ltr">0109 319 5894</a></p>
+  </div>
+</footer>
+
+<a class="wa-float" data-wa href="https://wa.me/201093195894" aria-label="WhatsApp"><svg viewBox="0 0 24 24"><path d="M17.5 14.4c-.3-.1-1.8-.9-2-1s-.5-.1-.7.1-.8 1-.9 1.2-.3.2-.6.1a8.2 8.2 0 0 1-4.1-3.6c-.3-.5.3-.5.9-1.6.1-.2 0-.4 0-.5l-.9-2.2c-.2-.6-.5-.5-.7-.5h-.6a1.1 1.1 0 0 0-.8.4 3.4 3.4 0 0 0-1 2.5 5.9 5.9 0 0 0 1.2 3.1 13.4 13.4 0 0 0 5.2 4.6c1.9.8 2.7.9 3.6.7a3.1 3.1 0 0 0 2-1.4 2.5 2.5 0 0 0 .2-1.4c-.1-.2-.3-.3-.6-.4zM12 21.8a9.8 9.8 0 0 1-5-1.4l-.4-.2-3.7 1 1-3.6-.2-.4A9.8 9.8 0 1 1 12 21.8zm8.4-18.2A11.8 11.8 0 0 0 1.8 17.8L.1 24l6.4-1.7A11.8 11.8 0 0 0 23.8 12a11.7 11.7 0 0 0-3.4-8.4z"/></svg></a>
+
+<script src="assets/js/i18n.js"></script>
+<script src="assets/js/menu-data.js"></script>
+<script>
+(function () {
+  const cols = document.getElementById("menu-cols");
+  const nav = document.getElementById("cat-nav");
+  const search = document.getElementById("menu-search");
+  const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const norm = (s) => s.toLowerCase().replace(/[أإآ]/g, "ا").replace(/ة/g, "ه").replace(/ى/g, "ي");
+
+  function render() {
+    const ar = NILE.lang === "ar";
+    const q = norm(search.value.trim());
+    nav.innerHTML = NILE_MENU.map((c) => `<a href="#${c.id}">${c.icon} ${ar ? c.ar : c.en}</a>`).join("");
+    const cards = NILE_MENU.map((c) => {
+      const items = c.items.filter(([a, e]) => !q || norm(a).includes(q) || norm(e).includes(q));
+      if (!items.length) return "";
+      return `<section class="menu-card ${c.color}" id="${c.id}">
+        <h2><span aria-hidden="true">${c.icon}</span>${ar ? c.ar : c.en}</h2>
+        <ul class="price-list">${items.map(([a, e, p]) =>
+          `<li><span>${esc(ar ? a : e)}<br><span class="alt">${esc(ar ? e : a)}</span></span><span class="dots"></span><span class="price">${p}</span></li>`
+        ).join("")}</ul></section>`;
+    }).join("");
+    cols.innerHTML = cards || `<p class="menu-empty">${NILE.t("mp.empty")}</p>`;
+    spy();
+    if (first && location.hash) {
+      first = false;
+      const t = document.getElementById(location.hash.slice(1));
+      if (t) t.scrollIntoView();
+    }
+  }
+  let first = true;
+
+  let io;
+  function spy() {
+    if (io) io.disconnect();
+    if (!("IntersectionObserver" in window)) return;
+    io = new IntersectionObserver((entries) => entries.forEach((en) => {
+      if (!en.isIntersecting) return;
+      nav.querySelectorAll("a").forEach((a) => {
+        const on = a.getAttribute("href") === "#" + en.target.id;
+        a.classList.toggle("active", on);
+        if (on) a.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" });
+      });
+    }), { rootMargin: "-160px 0px -60% 0px" });
+    cols.querySelectorAll(".menu-card").forEach((el) => io.observe(el));
+  }
+
+  I18N.ar["mp.page"] = "المنيو | نايل ستون كافيه";
+  I18N.en["mp.page"] = "Menu | Nile Stone Café";
+  search.addEventListener("input", render);
+  document.addEventListener("nile:lang", render);
+})();
+</script>
+</body>
+</html>

@@ -1,123 +1,91 @@
-/* Nile Stone Café — home page behaviour */
+/* Nile Stone Café — progressive enhancement (the site works without JS; this adds the extras). */
 (function () {
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+  const rtl = () => document.documentElement.dir === "rtl";
 
-  /* ---------- menu teaser ---------- */
-  function renderMenuTeaser() {
-    const lang = NILE.lang;
-    const vip = NILE_MENU.find((c) => c.id === "vip");
-    const cur = NILE.t("menu.cur");
-    $("#vip-list").innerHTML = vip.items.map(([ar, en, p]) =>
-      `<li><span>${lang === "ar" ? ar : en}</span><span class="dots"></span><span class="price">${p} ${cur}</span></li>`
-    ).join("");
-    $("#menu-cats").innerHTML = NILE_MENU.filter((c) => c.id !== "vip").map((c) =>
-      `<a class="chip" href="menu.html#${c.id}">${c.icon} ${lang === "ar" ? c.ar : c.en}</a>`
-    ).join("");
-  }
-
-  /* ---------- booking form ---------- */
-  function fillTimes() {
-    const sel = $("#f-time");
-    const prev = sel.value;
-    const opts = [];
-    // 3 PM → 2:30 AM, every 30 minutes
-    for (let i = 0; i < 24; i++) {
-      const h = (15 + Math.floor(i / 2)) % 24;
-      const m = i % 2 ? "30" : "00";
-      const value = `${String(h).padStart(2, "0")}:${m}`;
-      opts.push(`<option value="${value}">${formatTime(h, m)}</option>`);
+  /* header + mobile nav */
+  function initNav() {
+    const header = $(".site-header");
+    if (header && !header.classList.contains("scrolled")) {
+      const onScroll = () => header.classList.toggle("scrolled", scrollY > 30);
+      addEventListener("scroll", onScroll, { passive: true });
+      onScroll();
     }
-    sel.innerHTML = opts.join("");
-    sel.value = prev || "19:00";
+    const toggle = $(".menu-toggle"), links = $(".nav-links");
+    if (!toggle || !links) return;
+    const set = (open) => { links.classList.toggle("open", open); toggle.setAttribute("aria-expanded", String(open)); };
+    toggle.addEventListener("click", () => set(!links.classList.contains("open")));
+    links.addEventListener("click", (e) => { if (e.target.closest("a")) set(false); });
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape") set(false); });
   }
 
-  function formatTime(h, m) {
-    const h12 = h % 12 || 12;
-    if (NILE.lang === "ar") {
-      const part = h >= 15 && h < 18 ? "العصر" : h >= 18 ? "بالليل" : "الفجر";
-      return `${h12}:${m} ${part}`;
-    }
-    return `${h12}:${m} ${h >= 12 ? "PM" : "AM"}`;
-  }
-
+  /* booking form → WhatsApp */
   function initForm() {
     const form = $("#booking-form");
-    const date = $("#f-date");
+    if (!form) return;
+    const S = JSON.parse($("#form-i18n").textContent);
+    const date = $("#f-date"), time = $("#f-time");
+
     const today = new Date();
     today.setMinutes(today.getMinutes() - today.getTimezoneOffset());
     date.min = today.toISOString().slice(0, 10);
 
-    fillTimes();
-
-    $$("[data-book]").forEach((a) => a.addEventListener("click", () => {
-      const r = form.querySelector(`input[name="type"][value="${a.dataset.book}"]`);
-      if (r) r.checked = true;
-    }));
+    // 3 PM → 2:30 AM every 30 minutes
+    const opts = [];
+    for (let i = 0; i < 24; i++) {
+      const h = (15 + Math.floor(i / 2)) % 24, m = i % 2 ? "30" : "00";
+      const h12 = h % 12 || 12;
+      const part = document.documentElement.lang === "ar"
+        ? (h >= 15 && h < 18 ? S.afternoon : h >= 18 ? S.night : S.dawn)
+        : (h >= 12 ? S.pm : S.am);
+      opts.push(`<option value="${h}:${m}"${h === 19 && m === "00" ? " selected" : ""}>${h12}:${m} ${part}</option>`);
+    }
+    time.innerHTML = opts.join("");
 
     form.addEventListener("submit", (e) => {
       e.preventDefault();
-      const err = $("#form-error");
       const fd = new FormData(form);
       const name = (fd.get("name") || "").trim();
       const phone = (fd.get("phone") || "").trim();
       const d = fd.get("date");
+      const err = $("#form-error");
       if (!name || !phone || !d) {
-        err.textContent = NILE.t("form.err");
+        err.textContent = S.err;
         (!name ? $("#f-name") : !phone ? $("#f-phone") : date).focus();
         return;
       }
       err.textContent = "";
-
-      const t = NILE.t;
-      let guests = parseInt(fd.get("guests"), 10) || 1;
-      guests = Math.min(Math.max(guests, 1), NILE.maxGuests);
-      const extras = fd.getAll("extras").map((x) => t("x." + x));
-      const timeSel = $("#f-time");
-      const lines = [
-        NILE.lang === "ar" ? "مرحبًا نايل ستون 👋 عايز أحجز:" : "Hi Nile Stone 👋 I'd like to book:",
-        "",
-        `• ${t("form.type")}: ${t("t." + fd.get("type"))}`,
-        `• ${t("form.date")}: ${d}`,
-        `• ${t("form.time")}: ${timeSel.options[timeSel.selectedIndex].text}`,
-        `• ${t("form.guests")}: ${guests}`,
-        `• ${t("form.color")}: ${t("color." + fd.get("color"))}`
-      ];
-      if (extras.length) lines.push(`• ${t("form.extras")}: ${extras.join("، ")}`);
+      const guests = Math.min(Math.max(parseInt(fd.get("guests"), 10) || 1, 1), S.max);
+      const extras = fd.getAll("extras");
       const notes = (fd.get("notes") || "").trim();
-      if (notes) lines.push(`• ${t("form.notes")}: ${notes}`);
-      lines.push("", `${t("form.name")}: ${name}`, `${t("form.phone")}: ${phone}`);
-
-      const url = `https://wa.me/${NILE.whatsapp}?text=${encodeURIComponent(lines.join("\n"))}`;
-      window.open(url, "_blank", "noopener");
+      const lines = [
+        S.greet, "",
+        `• ${S.type}: ${fd.get("type")}`,
+        `• ${S.date}: ${d}`,
+        `• ${S.time}: ${time.options[time.selectedIndex].text}`,
+        `• ${S.guests}: ${guests}`,
+        `• ${S.color}: ${fd.get("color")}`
+      ];
+      if (extras.length) lines.push(`• ${S.extras}: ${extras.join("، ")}`);
+      if (notes) lines.push(`• ${S.notes}: ${notes}`);
+      lines.push("", `${S.name}: ${name}`, `${S.phone}: ${phone}`);
+      window.open(`https://wa.me/${S.wa}?text=${encodeURIComponent(lines.join("\n"))}`, "_blank", "noopener");
     });
   }
 
-  /* ---------- gallery lightbox ---------- */
+  /* gallery lightbox */
   function initLightbox() {
     const lb = $("#lightbox");
-    const img = $("img", lb);
     const items = $$("#gallery-grid img");
-    let idx = 0;
-    let lastFocus = null;
-    const show = (i) => {
-      idx = (i + items.length) % items.length;
-      img.src = items[idx].src;
-      img.alt = items[idx].alt;
-    };
-    const close = () => {
-      lb.classList.remove("open");
-      document.body.style.overflow = "";
-      if (lastFocus) lastFocus.focus();
-    };
+    if (!lb || !items.length) return;
+    const big = $("img", lb);
+    let idx = 0, last = null;
+    const show = (i) => { idx = (i + items.length) % items.length; big.src = items[idx].src; big.alt = items[idx].alt; };
+    const close = () => { lb.classList.remove("open"); document.body.style.overflow = ""; last && last.focus(); };
     items.forEach((el, i) => el.parentElement.addEventListener("click", (e) => {
-      lastFocus = e.currentTarget;
-      show(i);
-      lb.classList.add("open");
-      document.body.style.overflow = "hidden";
-      $(".lb-close", lb).focus();
+      last = e.currentTarget; show(i); lb.classList.add("open"); document.body.style.overflow = "hidden"; $(".lb-close", lb).focus();
     }));
-    const rtl = () => document.documentElement.dir === "rtl";
     $(".lb-close", lb).addEventListener("click", close);
     $(".lb-next", lb).addEventListener("click", () => show(idx + 1));
     $(".lb-prev", lb).addEventListener("click", () => show(idx - 1));
@@ -138,24 +106,45 @@
     });
   }
 
-  /* ---------- scroll reveal ---------- */
+  /* menu page: search + active category */
+  function initMenu() {
+    const search = $("#menu-search");
+    if (!search) return;
+    const norm = (s) => s.toLowerCase().replace(/[أإآ]/g, "ا").replace(/ة/g, "ه").replace(/ى/g, "ي");
+    const cards = $$(".menu-card"), empty = $(".menu-empty");
+    search.addEventListener("input", () => {
+      const q = norm(search.value.trim());
+      let any = false;
+      cards.forEach((card) => {
+        let shown = 0;
+        $$("li", card).forEach((li) => { const ok = !q || norm(li.textContent).includes(q); li.hidden = !ok; if (ok) shown++; });
+        card.hidden = !shown; if (shown) any = true;
+      });
+      empty.hidden = any;
+    });
+    const nav = $("#cat-nav");
+    if (!("IntersectionObserver" in window) || !nav) return;
+    const io = new IntersectionObserver((entries) => entries.forEach((en) => {
+      if (!en.isIntersecting) return;
+      $$("a", nav).forEach((a) => {
+        const on = a.getAttribute("href") === "#" + en.target.id;
+        a.classList.toggle("active", on);
+        if (on) nav.scrollTo({ left: a.offsetLeft - nav.clientWidth / 2 + a.clientWidth / 2, behavior: "smooth" });
+      });
+    }), { rootMargin: "-160px 0px -60% 0px" });
+    cards.forEach((c) => io.observe(c));
+  }
+
+  /* scroll reveal */
   function initReveal() {
-    const els = $$(".reveal");
+    const els = $$(".reveal:not(.in)");
     if (!("IntersectionObserver" in window)) { els.forEach((el) => el.classList.add("in")); return; }
     const io = new IntersectionObserver((entries) => entries.forEach((en) => {
       if (en.isIntersecting) { en.target.classList.add("in"); io.unobserve(en.target); }
-    }), { threshold: 0.12, rootMargin: "0px 0px -40px 0px" });
+    }), { threshold: 0.1, rootMargin: "0px 0px -40px 0px" });
     els.forEach((el) => io.observe(el));
   }
 
-  document.addEventListener("DOMContentLoaded", () => {
-    renderMenuTeaser();
-    initForm();
-    initLightbox();
-    initReveal();
-  });
-  document.addEventListener("nile:lang", () => {
-    if ($("#vip-list")) renderMenuTeaser();
-    if ($("#f-time")) fillTimes();
-  });
+  document.documentElement.classList.add("js");
+  document.addEventListener("DOMContentLoaded", () => { initNav(); initForm(); initLightbox(); initMenu(); initReveal(); });
 })();
